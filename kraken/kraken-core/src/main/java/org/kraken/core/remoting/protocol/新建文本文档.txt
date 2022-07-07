@@ -1,0 +1,26 @@
+bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+    @Override
+    protected void initChannel(SocketChannel channel) {
+        ChannelPipeline pipeline = channel.pipeline();
+        pipeline
+                .addLast(eventExecutors, "decoder", new MessageDecode())
+                .addLast(eventExecutors, "encoder", new MessageEncode())
+                .addLast(eventExecutors, new ChannelHandle(NettyClient.this))
+                .addLast(eventExecutors, "heartbeat_ping", new IdleStateHandler(0, nettyConfig.getHeartbeatIntervalTime(), 0, TimeUnit.SECONDS))
+                .addLast(eventExecutors, new ClientHandler());
+    }
+});
+bootstrap
+.childHandler(new ChannelInitializer<SocketChannel>() {
+	@Override
+	public void initChannel(SocketChannel channel) {
+		ChannelPipeline pipeline = channel.pipeline();
+		pipeline
+				.addLast(eventExecutors, "decoder", new MessageDecode())
+				.addLast(eventExecutors, "encoder", new MessageEncode())
+				.addLast(eventExecutors, new ChannelHandle(NettyServer.this))
+				// 当在指定的时间间隔内没有从 Channel 读取到数据时，会触发一个 READER_IDLE 的 IdleStateEvent 事件。
+				.addLast(eventExecutors, "heartbeat_pong", new IdleStateHandler(5,0,0, TimeUnit.SECONDS))
+				.addLast(eventExecutors, new ServerHandler());
+	}
+});
